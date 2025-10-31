@@ -1,0 +1,29 @@
+default_context:
+  project_name: 'My DevOps Demo'
+  project_slug: 'my_devops_demo'
+  domain_main: 'localhost'
+  domain_staging: 'localhost'
+  docker_swarm_stack_name_main: 'mydemo-main'
+  docker_swarm_stack_name_staging: 'mydemo-staging'
+  secret_key: 'hi'
+  first_superuser: 'admin@example.com'
+  first_superuser_password: 'hi'
+  backend_cors_origins: '["http://localhost", "http://localhost:8080"]'
+  couchdb_user: 'admin'
+  couchdb_password: 'password123'
+  couchdb_cors_origins: '["http://localhost"]'
+  traefik_constraint_tag: 'mydemo-prod'
+  traefik_constraint_tag_staging: 'mydemo-staging'
+  traefik_public_network: 'traefik-public'
+  traefik_public_constraint_tag: 'traefik-public'
+  flower_auth: 'root:changeme'
+  sentry_dsn: '""'
+  docker_image_prefix: 'maheshzero/mydemo'
+  docker_image_backend: 'maheshzero/mydemo-backend'
+  docker_image_celeryworker: 'maheshzero/mydemo-celery'
+  docker_image_frontend: 'maheshzero/mydemo-frontend'
+  _copy_without_render:
+    - frontend/src/**/*.html
+    - frontend/src/**/*.vue
+    - frontend/node_modules/*
+  _template: ./

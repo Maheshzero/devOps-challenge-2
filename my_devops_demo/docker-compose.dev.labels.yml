@@ -1,0 +1,33 @@
+version: '3'
+services:
+  swagger-ui:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.swagger.rule=PathPrefix(`/swagger/`)"
+      - "traefik.http.routers.swagger.middlewares=swagger-strip"
+      - "traefik.http.middlewares.swagger-strip.stripprefix.prefixes=/swagger"
+      - "traefik.http.services.swagger.loadbalancer.server.port=8080"
+      - "traefik.http.routers.swagger.entrypoints=web"
+  proxy:
+    # Intentionally left blank: do not expose the traefik container to itself via docker provider
+  backend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8888"
+      - "traefik.http.routers.backend.entrypoints=web"
+  frontend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.middlewares.frontend-spa.chain.middlewares=frontend-slash,frontend-index"
+      - "traefik.http.middlewares.frontend-slash.redirectregex.regex=^(https?://[^/]+/[^/]*)$$"
+      - "traefik.http.middlewares.frontend-slash.redirectregex.replacement=$${1}/"
+      - "traefik.http.middlewares.frontend-index.headers.customrequestheaders.X-Frame-Options=DENY"
+      - "traefik.http.routers.frontend.middlewares=frontend-spa"
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.entrypoints=web"

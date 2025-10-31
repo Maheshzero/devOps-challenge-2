@@ -1,0 +1,48 @@
+http:
+  middlewares:
+    spa-fallback:
+      chain:
+        middlewares:
+          - security
+          - index-rewrite
+    
+    security:
+      headers:
+        customRequestHeaders:
+          X-Frame-Options: "DENY"
+        customResponseHeaders:
+          Cache-Control: "no-store"
+    
+    index-rewrite:
+      errors:
+        status:
+          - "404"
+        service: frontend
+        query: "/"
+  
+  routers:
+    frontend:
+      rule: "PathPrefix(`/`) && !PathPrefix(`/api`)"
+      service: "frontend"
+      entryPoints: ["web"]
+      middlewares: ["spa-fallback"]
+      priority: 1
+    
+    backend:
+      rule: "PathPrefix(`/api`)"
+      service: "backend"
+      entryPoints: ["web"]
+      priority: 2
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"
+        passHostHeader: true
+    
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://backend:8888"
+        passHostHeader: true

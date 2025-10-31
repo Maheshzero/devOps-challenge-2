@@ -1,0 +1,20 @@
+version: '3'
+services:
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    environment:
+      - API_URL=https://${DOMAIN}/api/v1/swagger/
+  proxy:
+    image: traefik:v3.0
+    ports:
+      - "80:80"      # HTTP
+      - "8081:8081"  # API / Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic_conf:/etc/traefik/dynamic_conf:ro
+    labels:
+      # Do NOT expose the Traefik container itself as a backend service to avoid routing loops.
+      - "traefik.enable=false"
+      # Dashboard: expose Traefik api/dashboard on entrypoint 'api'
+      - "traefik.http.routers.traefik-api.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/dashboard`)"
