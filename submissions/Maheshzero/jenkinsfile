@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'DOCKERHUB_REPO', defaultValue: 'your-dockerhub-username/flask-app', description: 'DockerHub repo (e.g. username/repo)')
+        string(name: 'IMAGE_TAG', defaultValue: "${env.BUILD_NUMBER ?: 'local'}", description: 'Image tag to push')
+    }
+
+    environment {
+        DOCKERHUB_REPO = "${params.DOCKERHUB_REPO}"
+        IMAGE_TAG = "${params.IMAGE_TAG}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo "Building Docker image ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+                sh "docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests inside container (fail pipeline if tests fail)'
+                // Run pytest inside the built image. Remove || true so pipeline fails on test failures.
+                sh "docker run --rm ${DOCKERHUB_REPO}:${IMAGE_TAG} pytest -q"
+            }
+            post {
+                failure {
+                    echo 'Tests failed — build will be marked as FAILED.'
+                }
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                // Requires a Jenkins usernamePassword credential with id 'dockerhub' (username/password)
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                    sh "docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Deploy - Local (docker run)') {
+            steps {
+                echo 'Deploying container locally (docker run)'
+                // Stop and remove any existing container
+                sh "docker rm -f flask-app || true"
+                // Run in detached mode mapping container port 5000 to host 5000
+                sh "docker run -d --name flask-app -p 5000:5000 ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+            }
+        }
+
+        stage('Deploy - Kubernetes (kubectl)') {
+            steps {
+                echo 'Applying Kubernetes manifests with substituted image'
+                // Substitute the placeholder IMAGE_PLACEHOLDER in the YAMLs and apply them
+                sh "sed 's|IMAGE_PLACEHOLDER|${DOCKERHUB_REPO}:${IMAGE_TAG}|g' ${WORKSPACE}/submissions/Maheshzero/deployment.yaml | kubectl apply -f -"
+                sh "sed 's|IMAGE_PLACEHOLDER|${DOCKERHUB_REPO}:${IMAGE_TAG}|g' ${WORKSPACE}/submissions/Maheshzero/service.yaml | kubectl apply -f -"
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finished. You can verify with `docker ps`, `kubectl get pods` or `minikube service`.'
+        }
+    }
+}
